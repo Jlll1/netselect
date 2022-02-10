@@ -1,0 +1,32 @@
+#!/bin/bash
+IF=wlo1
+
+wpa() {
+        wpa_cli -i $IF "$@"
+}
+
+wpa scan
+sleep .5s
+
+SSID=$(wpa scan_results |
+       awk 'NR > 1' |
+       awk -F'\t' '{OFS = FS} {print $NF}' |
+       dmenu)
+
+NETWORK=$(wpa list_networks |
+          grep "${SSID}" |
+          awk 'NR == 1' |
+          awk '{print $1}')
+
+if [ -z "$NETWORK" ]
+then 
+        NETWORK=$(wpa add_network |
+                 awk 'END{print}')
+        wpa set_network $NETWORK ssid '"'$SSID'"' 
+        PSK=$(echo "" | dmenu -p "Enter the password:")
+        wpa set_network $NETWORK psk '"'$PSK'"'
+fi
+
+wpa enable_network $NETWORK
+wpa reconnect
+wpa save_config
